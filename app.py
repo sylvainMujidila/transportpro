@@ -722,6 +722,8 @@ elif "Chauffeurs" in page:
             sel = st.selectbox("Sélectionner", df_ch["nom"].tolist())
             cid = df_ch[df_ch["nom"] == sel]["id"].iloc[0]
             row = query("SELECT * FROM chauffeurs WHERE id=?", params=(cid,))
+            if row.empty:
+                 st.info("Aucun chauffeur.")
             if not row.empty:
                 r = row.iloc[0]
                 with st.form("form_edit_chauffeur"):
