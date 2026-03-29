@@ -333,7 +333,7 @@ init_db()
 # ─────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown('<div class="sidebar-title">🚛 TRANSPORTPRO</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-title">🚛 Kabeya Trans</div>', unsafe_allow_html=True)
     st.markdown("**Système de gestion**  \nTransport de marchandises", unsafe_allow_html=True)
     st.divider()
     page = st.radio("Navigation", [
@@ -386,10 +386,10 @@ if "Tableau" in page:
 
     cols2 = st.columns(4)
     kpis2 = [
-        ("💶", f"{ca:,.0f} €",        "CA HT livré",         "#27ae60"),
-        ("🔧", f"{total_dep:,.0f} €",  "Dépenses véhicules",  "#e74c3c"),
-        ("💰", f"{total_paie:,.0f} €", "Paiements chauffeurs","#f39c12"),
-        ("📈", f"{benefice:,.0f} €",   "Bénéfice net estimé", "#27ae60" if benefice >= 0 else "#e74c3c"),
+        ("💶", f"{ca:,.0f} $",        "CA HT livré",         "#27ae60"),
+        ("🔧", f"{total_dep:,.0f} $",  "Dépenses véhicules",  "#e74c3c"),
+        ("💰", f"{total_paie:,.0f} $", "Paiements chauffeurs","#f39c12"),
+        ("📈", f"{benefice:,.0f} $",   "Bénéfice net estimé", "#27ae60" if benefice >= 0 else "#e74c3c"),
     ]
     for col, (icon, val, label, color) in zip(cols2, kpis2):
         with col:
@@ -511,7 +511,7 @@ elif "Livraisons" in page:
                 origine     = st.text_input("Ville d'origine")
                 destination = st.text_input("Ville de destination")
                 poids       = st.number_input("Poids (kg)", min_value=0.0, step=100.0)
-                prix        = st.number_input("Prix HT (€)", min_value=0.0, step=10.0)
+                prix        = st.number_input("Prix HT ($)", min_value=0.0, step=10.0)
                 d_depart    = st.date_input("Date de départ",    value=date.today())
                 d_livraison = st.date_input("Date de livraison", value=date.today())
             notes = st.text_area("Notes")
@@ -567,7 +567,7 @@ elif "Livraisons" in page:
                         origine     = st.text_input("Origine",     value=r["origine"] or "")
                         destination = st.text_input("Destination", value=r["destination"] or "")
                         poids       = st.number_input("Poids (kg)",    value=float(r["poids_kg"] or 0), step=100.0)
-                        prix        = st.number_input("Prix HT (€)",   value=float(r["prix_ht"] or 0), step=10.0)
+                        prix        = st.number_input("Prix HT ($)",   value=float(r["prix_ht"] or 0), step=10.0)
                         try:
                             d_dep = date.fromisoformat(r["date_depart"]) if r["date_depart"] else date.today()
                             d_liv = date.fromisoformat(r["date_livraison"]) if r["date_livraison"] else date.today()
@@ -1126,11 +1126,11 @@ elif "Paiements" in page:
                    SUM(CASE WHEN p.type_paiement='Avance'               THEN p.montant ELSE 0 END) as "Avances (€)",
                    SUM(CASE WHEN p.type_paiement='Heures supplémentaires' THEN p.montant ELSE 0 END) as "Heures supp. (€)",
                    SUM(CASE WHEN p.type_paiement='Remboursement frais'  THEN p.montant ELSE 0 END) as "Remboursements (€)",
-                   SUM(p.montant) as "TOTAL (€)"
+                   SUM(p.montant) as "TOTAL ($)"
             FROM paiements_chauffeurs p
             JOIN chauffeurs ch ON ch.id=p.chauffeur_id
             WHERE p.statut='Payé'
-            GROUP BY ch.id ORDER BY "TOTAL (€)" DESC
+            GROUP BY ch.id ORDER BY "TOTAL ($)" DESC
         """)
         st.dataframe(df_recap, use_container_width=True, hide_index=True)
 
