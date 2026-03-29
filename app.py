@@ -14,7 +14,7 @@ import os
 # ─────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="Kabeya Trans",
+    page_title="TransportPro",
     page_icon="🚛",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -206,6 +206,29 @@ def init_db():
         date_depart TEXT, date_livraison TEXT, notes TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS depenses_vehicules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vehicule_id INTEGER REFERENCES vehicules(id),
+        type_depense TEXT NOT NULL,
+        montant REAL NOT NULL,
+        date_depense TEXT NOT NULL,
+        kilometrage REAL,
+        fournisseur TEXT,
+        description TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS paiements_chauffeurs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chauffeur_id INTEGER REFERENCES chauffeurs(id),
+        type_paiement TEXT NOT NULL,
+        montant REAL NOT NULL,
+        date_paiement TEXT NOT NULL,
+        periode TEXT,
+        livraison_id INTEGER REFERENCES livraisons(id),
+        statut TEXT DEFAULT 'Payé',
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
     """)
     # Demo data
     c.execute("SELECT COUNT(*) FROM clients")
@@ -232,6 +255,24 @@ def init_db():
             ("LIV-2024-001",1,1,1,"Lyon",    "Marseille","5000", "1200","Livré",     "2024-01-10","2024-01-11",""),
             ("LIV-2024-002",2,3,3,"Bordeaux","Paris",    "18000","3500","En transit","2024-01-15","2024-01-17","Fragile"),
             ("LIV-2024-003",3,2,2,"Paris",   "Lille",    "8000", "1800","En attente","2024-01-20","2024-01-21",""),
+        ])
+        c.executemany("""INSERT INTO depenses_vehicules
+            (vehicule_id,type_depense,montant,date_depense,kilometrage,fournisseur,description)
+            VALUES (?,?,?,?,?,?,?)""", [
+            (1,"Carburant",   180.0, "2024-01-10", 152000, "Total",         "Plein gasoil Lyon"),
+            (1,"Entretien",   320.0, "2024-01-05", 150000, "Renault Trucks","Vidange + filtres"),
+            (2,"Carburant",   410.0, "2024-01-15", 280000, "BP",            "Plein autoroute"),
+            (3,"Réparation",  1200.0,"2024-01-08", 310000, "Volvo Service", "Remplacement plaquettes"),
+            (2,"Pneumatiques",880.0, "2024-01-12", 279000, "Euromaster",    "2 pneus avant"),
+        ])
+        c.executemany("""INSERT INTO paiements_chauffeurs
+            (chauffeur_id,type_paiement,montant,date_paiement,periode,statut,notes)
+            VALUES (?,?,?,?,?,?,?)""", [
+            (1,"Salaire mensuel", 2800.0,"2024-01-31","Janvier 2024","Payé",   ""),
+            (2,"Salaire mensuel", 2600.0,"2024-01-31","Janvier 2024","Payé",   ""),
+            (3,"Salaire mensuel", 2900.0,"2024-01-31","Janvier 2024","Payé",   ""),
+            (1,"Prime mission",    350.0,"2024-01-11","LIV-2024-001","Payé",   "Prime livraison express"),
+            (3,"Avance",           500.0,"2024-01-20","Janvier 2024","Payé",   "Avance sur salaire"),
         ])
     conn.commit()
     conn.close()
@@ -301,6 +342,8 @@ with st.sidebar:
         "👤  Clients",
         "🧑‍✈️  Chauffeurs",
         "🚗  Véhicules",
+        "🔧  Dépenses Véhicules",
+        "💰  Paiements Chauffeurs",
     ], label_visibility="collapsed")
     st.divider()
     st.caption(f"🗓 {datetime.now().strftime('%d/%m/%Y %H:%M')}")
@@ -323,7 +366,11 @@ if "Tableau" in page:
     nb_vehic   = c.execute("SELECT COUNT(*) FROM vehicules").fetchone()[0]
     nb_chauff  = c.execute("SELECT COUNT(*) FROM chauffeurs").fetchone()[0]
     ca         = c.execute("SELECT COALESCE(SUM(prix_ht),0) FROM livraisons WHERE statut='Livré'").fetchone()[0]
+    total_dep  = c.execute("SELECT COALESCE(SUM(montant),0) FROM depenses_vehicules").fetchone()[0]
+    total_paie = c.execute("SELECT COALESCE(SUM(montant),0) FROM paiements_chauffeurs WHERE statut='Payé'").fetchone()[0]
     conn.close()
+
+    benefice = ca - total_dep - total_paie
 
     # KPIs row 1
     cols = st.columns(4)
@@ -339,10 +386,10 @@ if "Tableau" in page:
 
     cols2 = st.columns(4)
     kpis2 = [
-        ("👤", nb_clients, "Clients",   "#F5A623"),
-        ("🧑‍✈️", nb_chauff, "Chauffeurs", "#1a9bd7"),
-        ("🚗", nb_vehic,   "Véhicules", "#1a9bd7"),
-        ("💶", f"{ca:,.0f} €", "CA HT livré", "#27ae60"),
+        ("💶", f"{ca:,.0f} €",        "CA HT livré",         "#27ae60"),
+        ("🔧", f"{total_dep:,.0f} €",  "Dépenses véhicules",  "#e74c3c"),
+        ("💰", f"{total_paie:,.0f} €", "Paiements chauffeurs","#f39c12"),
+        ("📈", f"{benefice:,.0f} €",   "Bénéfice net estimé", "#27ae60" if benefice >= 0 else "#e74c3c"),
     ]
     for col, (icon, val, label, color) in zip(cols2, kpis2):
         with col:
@@ -354,12 +401,19 @@ if "Tableau" in page:
     col_a, col_b = st.columns(2)
 
     with col_a:
-        section("Répartition des statuts")
+        section("Répartition des statuts livraisons")
         df_stat = query("SELECT statut, COUNT(*) as nb FROM livraisons GROUP BY statut")
         if not df_stat.empty:
             st.bar_chart(df_stat.set_index("statut")["nb"])
 
     with col_b:
+        section("Dépenses par type (véhicules)")
+        df_dep_type = query("SELECT type_depense, SUM(montant) as total FROM depenses_vehicules GROUP BY type_depense ORDER BY total DESC")
+        if not df_dep_type.empty:
+            st.bar_chart(df_dep_type.set_index("type_depense")["total"])
+
+    col_c, col_d = st.columns(2)
+    with col_c:
         section("Chiffre d'affaires par client")
         df_ca = query("""
             SELECT c.nom, COALESCE(SUM(l.prix_ht),0) as ca
@@ -368,6 +422,17 @@ if "Tableau" in page:
         """)
         if not df_ca.empty:
             st.bar_chart(df_ca.set_index("nom")["ca"])
+
+    with col_d:
+        section("Paiements par chauffeur")
+        df_pay = query("""
+            SELECT ch.nom||' '||ch.prenom as chauffeur, SUM(p.montant) as total
+            FROM paiements_chauffeurs p
+            JOIN chauffeurs ch ON ch.id=p.chauffeur_id
+            GROUP BY ch.id ORDER BY total DESC
+        """)
+        if not df_pay.empty:
+            st.bar_chart(df_pay.set_index("chauffeur")["total"])
 
     section("Dernières livraisons")
     df_liv = query("""
@@ -762,5 +827,322 @@ elif "Véhicules" in page:
                     execute("DELETE FROM vehicules WHERE id=?", (vid,))
                     st.success("Véhicule supprimé.")
                     st.rerun()
+
+# ─────────────────────────────────────────────
+#  PAGE : DÉPENSES VÉHICULES
+# ─────────────────────────────────────────────
+
+elif "Dépenses" in page:
+    st.markdown("# 🔧 Dépenses Véhicules")
+    st.divider()
+
+    # KPIs résumé
+    conn = get_conn(); c = conn.cursor()
+    total_dep    = c.execute("SELECT COALESCE(SUM(montant),0) FROM depenses_vehicules").fetchone()[0]
+    dep_carbu    = c.execute("SELECT COALESCE(SUM(montant),0) FROM depenses_vehicules WHERE type_depense='Carburant'").fetchone()[0]
+    dep_entret   = c.execute("SELECT COALESCE(SUM(montant),0) FROM depenses_vehicules WHERE type_depense='Entretien'").fetchone()[0]
+    dep_rep      = c.execute("SELECT COALESCE(SUM(montant),0) FROM depenses_vehicules WHERE type_depense='Réparation'").fetchone()[0]
+    conn.close()
+
+    k1, k2, k3, k4 = st.columns(4)
+    with k1: st.markdown(kpi_card("💶", f"{total_dep:,.0f} €", "Total dépenses", "#e74c3c"), unsafe_allow_html=True)
+    with k2: st.markdown(kpi_card("⛽", f"{dep_carbu:,.0f} €", "Carburant",      "#f39c12"), unsafe_allow_html=True)
+    with k3: st.markdown(kpi_card("🔩", f"{dep_entret:,.0f} €","Entretien",      "#1a9bd7"), unsafe_allow_html=True)
+    with k4: st.markdown(kpi_card("🛠️", f"{dep_rep:,.0f} €",   "Réparations",    "#e74c3c"), unsafe_allow_html=True)
+
+    st.divider()
+
+    tab_list, tab_new, tab_edit = st.tabs(["📋 Historique", "➕ Nouvelle dépense", "✏️ Modifier / Supprimer"])
+
+    veh_df2 = query("SELECT id, immatriculation FROM vehicules ORDER BY immatriculation")
+    veh_map2 = dict(zip(veh_df2["immatriculation"], veh_df2["id"]))
+
+    TYPES_DEP = ["Carburant", "Entretien", "Réparation", "Pneumatiques", "Lavage", "Péage", "Assurance", "Autre"]
+
+    with tab_list:
+        # Filtres
+        f1, f2 = st.columns(2)
+        with f1:
+            filtre_veh = st.selectbox("Filtrer par véhicule", ["Tous"] + list(veh_map2.keys()))
+        with f2:
+            filtre_type = st.selectbox("Filtrer par type", ["Tous"] + TYPES_DEP)
+
+        sql = """
+            SELECT d.id, v.immatriculation as "Véhicule", d.type_depense as "Type",
+                   d.montant as "Montant (€)", d.date_depense as "Date",
+                   d.kilometrage as "Km", d.fournisseur as "Fournisseur",
+                   d.description as "Description"
+            FROM depenses_vehicules d
+            LEFT JOIN vehicules v ON v.id = d.vehicule_id
+            WHERE 1=1
+        """
+        params = []
+        if filtre_veh != "Tous":
+            sql += " AND v.immatriculation=?"
+            params.append(filtre_veh)
+        if filtre_type != "Tous":
+            sql += " AND d.type_depense=?"
+            params.append(filtre_type)
+        sql += " ORDER BY d.date_depense DESC"
+
+        df_dep = query(sql, params=tuple(params))
+        st.dataframe(df_dep.drop(columns=["id"]), use_container_width=True, hide_index=True)
+
+        total_filtre = df_dep["Montant (€)"].sum() if not df_dep.empty else 0
+        st.caption(f"**Total affiché : {total_filtre:,.2f} €** — {len(df_dep)} enregistrement(s)")
+
+        st.divider()
+        section("Dépenses par véhicule")
+        df_par_veh = query("""
+            SELECT v.immatriculation, d.type_depense, SUM(d.montant) as total
+            FROM depenses_vehicules d JOIN vehicules v ON v.id=d.vehicule_id
+            GROUP BY v.immatriculation, d.type_depense ORDER BY v.immatriculation
+        """)
+        if not df_par_veh.empty:
+            pivot = df_par_veh.pivot_table(index="immatriculation", columns="type_depense",
+                                            values="total", fill_value=0)
+            st.bar_chart(pivot)
+
+    with tab_new:
+        section("Enregistrer une dépense")
+        with st.form("form_new_dep"):
+            c1, c2 = st.columns(2)
+            with c1:
+                veh_sel    = st.selectbox("Véhicule *", list(veh_map2.keys()))
+                type_dep   = st.selectbox("Type de dépense *", TYPES_DEP)
+                montant    = st.number_input("Montant (€) *", min_value=0.0, step=1.0)
+                date_dep   = st.date_input("Date *", value=date.today())
+            with c2:
+                kilometrage  = st.number_input("Kilométrage", min_value=0.0, step=100.0)
+                fournisseur  = st.text_input("Fournisseur / Garage")
+                description  = st.text_area("Description / Notes")
+            if st.form_submit_button("💾 Enregistrer la dépense"):
+                if montant <= 0:
+                    st.error("Le montant doit être supérieur à 0.")
+                else:
+                    execute("""INSERT INTO depenses_vehicules
+                        (vehicule_id,type_depense,montant,date_depense,kilometrage,fournisseur,description)
+                        VALUES (?,?,?,?,?,?,?)""",
+                        (veh_map2[veh_sel], type_dep, montant,
+                         date_dep.isoformat(), kilometrage or None,
+                         fournisseur, description))
+                    st.success(f"✅ Dépense de **{montant:.2f} €** ({type_dep}) enregistrée !")
+                    st.rerun()
+
+    with tab_edit:
+        section("Modifier ou supprimer une dépense")
+        df_all_dep = query("""
+            SELECT d.id, v.immatriculation||' — '||d.type_depense||' — '||d.date_depense||' ('||d.montant||'€)' as label
+            FROM depenses_vehicules d LEFT JOIN vehicules v ON v.id=d.vehicule_id
+            ORDER BY d.date_depense DESC
+        """)
+        if df_all_dep.empty:
+            st.info("Aucune dépense enregistrée.")
+        else:
+            sel_label = st.selectbox("Sélectionner", df_all_dep["label"].tolist())
+            dep_id    = df_all_dep[df_all_dep["label"] == sel_label]["id"].iloc[0]
+            row       = query("SELECT * FROM depenses_vehicules WHERE id=?", params=(dep_id,))
+            if not row.empty:
+                r = row.iloc[0]
+                with st.form("form_edit_dep"):
+                    c1, c2 = st.columns(2)
+                    veh_names = list(veh_map2.keys())
+                    cur_veh   = query("SELECT immatriculation FROM vehicules WHERE id=?", params=(r["vehicule_id"],))
+                    cur_veh_n = cur_veh["immatriculation"].iloc[0] if not cur_veh.empty else veh_names[0]
+                    with c1:
+                        veh_sel   = st.selectbox("Véhicule", veh_names,
+                                                  index=veh_names.index(cur_veh_n) if cur_veh_n in veh_names else 0)
+                        type_dep  = st.selectbox("Type", TYPES_DEP,
+                                                  index=TYPES_DEP.index(r["type_depense"]) if r["type_depense"] in TYPES_DEP else 0)
+                        montant   = st.number_input("Montant (€)", value=float(r["montant"]), step=1.0)
+                        try:    date_dep = st.date_input("Date", value=date.fromisoformat(r["date_depense"]))
+                        except: date_dep = st.date_input("Date", value=date.today())
+                    with c2:
+                        kilometrage = st.number_input("Kilométrage", value=float(r["kilometrage"] or 0), step=100.0)
+                        fournisseur = st.text_input("Fournisseur", value=r["fournisseur"] or "")
+                        description = st.text_area("Description",  value=r["description"] or "")
+                    if st.form_submit_button("💾 Mettre à jour"):
+                        execute("""UPDATE depenses_vehicules SET vehicule_id=?,type_depense=?,montant=?,
+                            date_depense=?,kilometrage=?,fournisseur=?,description=? WHERE id=?""",
+                            (veh_map2[veh_sel], type_dep, montant, date_dep.isoformat(),
+                             kilometrage or None, fournisseur, description, dep_id))
+                        st.success("✅ Dépense mise à jour !")
+                        st.rerun()
+                if st.button("🗑️ Supprimer cette dépense"):
+                    execute("DELETE FROM depenses_vehicules WHERE id=?", (dep_id,))
+                    st.success("Dépense supprimée.")
+                    st.rerun()
+
+# ─────────────────────────────────────────────
+#  PAGE : PAIEMENTS CHAUFFEURS
+# ─────────────────────────────────────────────
+
+elif "Paiements" in page:
+    st.markdown("# 💰 Paiements Chauffeurs")
+    st.divider()
+
+    # KPIs
+    conn = get_conn(); c = conn.cursor()
+    total_pay   = c.execute("SELECT COALESCE(SUM(montant),0) FROM paiements_chauffeurs").fetchone()[0]
+    pay_salaire = c.execute("SELECT COALESCE(SUM(montant),0) FROM paiements_chauffeurs WHERE type_paiement='Salaire mensuel'").fetchone()[0]
+    pay_prime   = c.execute("SELECT COALESCE(SUM(montant),0) FROM paiements_chauffeurs WHERE type_paiement='Prime mission'").fetchone()[0]
+    en_attente_p= c.execute("SELECT COALESCE(SUM(montant),0) FROM paiements_chauffeurs WHERE statut='En attente'").fetchone()[0]
+    conn.close()
+
+    k1, k2, k3, k4 = st.columns(4)
+    with k1: st.markdown(kpi_card("💶", f"{total_pay:,.0f} €",   "Total versé",      "#f39c12"), unsafe_allow_html=True)
+    with k2: st.markdown(kpi_card("🧾", f"{pay_salaire:,.0f} €", "Salaires",          "#1a9bd7"), unsafe_allow_html=True)
+    with k3: st.markdown(kpi_card("⭐", f"{pay_prime:,.0f} €",   "Primes & bonus",    "#27ae60"), unsafe_allow_html=True)
+    with k4: st.markdown(kpi_card("⏳", f"{en_attente_p:,.0f} €","En attente paiement","#e74c3c"), unsafe_allow_html=True)
+
+    st.divider()
+
+    tab_list, tab_new, tab_edit, tab_recap = st.tabs([
+        "📋 Historique", "➕ Nouveau paiement", "✏️ Modifier / Supprimer", "📊 Récapitulatif"
+    ])
+
+    chauff_df2 = query("SELECT id, nom||' '||prenom as nom FROM chauffeurs ORDER BY nom")
+    chauff_map2 = dict(zip(chauff_df2["nom"], chauff_df2["id"]))
+
+    TYPES_PAY = ["Salaire mensuel", "Prime mission", "Avance", "Remboursement frais",
+                 "Heures supplémentaires", "Indemnité", "Autre"]
+
+    with tab_list:
+        f1, f2, f3 = st.columns(3)
+        with f1: filtre_ch   = st.selectbox("Chauffeur",    ["Tous"] + list(chauff_map2.keys()))
+        with f2: filtre_tp   = st.selectbox("Type",         ["Tous"] + TYPES_PAY)
+        with f3: filtre_stat = st.selectbox("Statut paiement", ["Tous", "Payé", "En attente", "Annulé"])
+
+        sql = """
+            SELECT p.id, ch.nom||' '||ch.prenom as "Chauffeur",
+                   p.type_paiement as "Type", p.montant as "Montant (€)",
+                   p.date_paiement as "Date", p.periode as "Période",
+                   p.statut as "Statut", p.notes as "Notes"
+            FROM paiements_chauffeurs p
+            LEFT JOIN chauffeurs ch ON ch.id = p.chauffeur_id
+            WHERE 1=1
+        """
+        params = []
+        if filtre_ch != "Tous":
+            sql += " AND ch.nom||' '||ch.prenom=?"
+            params.append(filtre_ch)
+        if filtre_tp != "Tous":
+            sql += " AND p.type_paiement=?"
+            params.append(filtre_tp)
+        if filtre_stat != "Tous":
+            sql += " AND p.statut=?"
+            params.append(filtre_stat)
+        sql += " ORDER BY p.date_paiement DESC"
+
+        df_pay_list = query(sql, params=tuple(params))
+        st.dataframe(df_pay_list.drop(columns=["id"]), use_container_width=True, hide_index=True)
+        total_filtre = df_pay_list["Montant (€)"].sum() if not df_pay_list.empty else 0
+        st.caption(f"**Total affiché : {total_filtre:,.2f} €** — {len(df_pay_list)} enregistrement(s)")
+
+    with tab_new:
+        section("Enregistrer un paiement")
+        with st.form("form_new_pay"):
+            c1, c2 = st.columns(2)
+            livs_list = query("SELECT id, reference FROM livraisons ORDER BY created_at DESC")
+            livs_options = ["— Aucune —"] + livs_list["reference"].tolist()
+            with c1:
+                chauff_sel   = st.selectbox("Chauffeur *", list(chauff_map2.keys()))
+                type_pay     = st.selectbox("Type de paiement *", TYPES_PAY)
+                montant_p    = st.number_input("Montant (€) *", min_value=0.0, step=10.0)
+                date_pay     = st.date_input("Date de paiement *", value=date.today())
+            with c2:
+                periode      = st.text_input("Période (ex: Janvier 2024)")
+                liv_ref      = st.selectbox("Livraison associée (optionnel)", livs_options)
+                statut_p     = st.selectbox("Statut", ["Payé", "En attente", "Annulé"])
+                notes_p      = st.text_area("Notes")
+            if st.form_submit_button("💾 Enregistrer le paiement"):
+                if montant_p <= 0:
+                    st.error("Le montant doit être supérieur à 0.")
+                else:
+                    liv_id = None
+                    if liv_ref != "— Aucune —" and not livs_list.empty:
+                        lv = livs_list[livs_list["reference"] == liv_ref]
+                        liv_id = int(lv["id"].iloc[0]) if not lv.empty else None
+                    execute("""INSERT INTO paiements_chauffeurs
+                        (chauffeur_id,type_paiement,montant,date_paiement,periode,livraison_id,statut,notes)
+                        VALUES (?,?,?,?,?,?,?,?)""",
+                        (chauff_map2[chauff_sel], type_pay, montant_p,
+                         date_pay.isoformat(), periode, liv_id, statut_p, notes_p))
+                    st.success(f"✅ Paiement de **{montant_p:.2f} €** enregistré pour **{chauff_sel}** !")
+                    st.rerun()
+
+    with tab_edit:
+        section("Modifier ou supprimer un paiement")
+        df_all_pay = query("""
+            SELECT p.id, ch.nom||' '||ch.prenom||' — '||p.type_paiement||' — '||p.date_paiement||' ('||p.montant||'€)' as label
+            FROM paiements_chauffeurs p LEFT JOIN chauffeurs ch ON ch.id=p.chauffeur_id
+            ORDER BY p.date_paiement DESC
+        """)
+        if df_all_pay.empty:
+            st.info("Aucun paiement enregistré.")
+        else:
+            sel_label_p = st.selectbox("Sélectionner", df_all_pay["label"].tolist())
+            pay_id      = df_all_pay[df_all_pay["label"] == sel_label_p]["id"].iloc[0]
+            row_p       = query("SELECT * FROM paiements_chauffeurs WHERE id=?", params=(pay_id,))
+            if not row_p.empty:
+                r = row_p.iloc[0]
+                with st.form("form_edit_pay"):
+                    c1, c2 = st.columns(2)
+                    ch_names  = list(chauff_map2.keys())
+                    cur_ch    = query("SELECT nom||' '||prenom as nom FROM chauffeurs WHERE id=?", params=(r["chauffeur_id"],))
+                    cur_ch_n  = cur_ch["nom"].iloc[0] if not cur_ch.empty else ch_names[0]
+                    with c1:
+                        chauff_sel = st.selectbox("Chauffeur", ch_names,
+                                                   index=ch_names.index(cur_ch_n) if cur_ch_n in ch_names else 0)
+                        type_pay   = st.selectbox("Type", TYPES_PAY,
+                                                   index=TYPES_PAY.index(r["type_paiement"]) if r["type_paiement"] in TYPES_PAY else 0)
+                        montant_p  = st.number_input("Montant (€)", value=float(r["montant"]), step=10.0)
+                        try:    date_pay = st.date_input("Date", value=date.fromisoformat(r["date_paiement"]))
+                        except: date_pay = st.date_input("Date", value=date.today())
+                    with c2:
+                        periode   = st.text_input("Période", value=r["periode"] or "")
+                        statuts_p = ["Payé", "En attente", "Annulé"]
+                        statut_p  = st.selectbox("Statut", statuts_p,
+                                                  index=statuts_p.index(r["statut"]) if r["statut"] in statuts_p else 0)
+                        notes_p   = st.text_area("Notes", value=r["notes"] or "")
+                    if st.form_submit_button("💾 Mettre à jour"):
+                        execute("""UPDATE paiements_chauffeurs SET chauffeur_id=?,type_paiement=?,montant=?,
+                            date_paiement=?,periode=?,statut=?,notes=? WHERE id=?""",
+                            (chauff_map2[chauff_sel], type_pay, montant_p, date_pay.isoformat(),
+                             periode, statut_p, notes_p, pay_id))
+                        st.success("✅ Paiement mis à jour !")
+                        st.rerun()
+                if st.button("🗑️ Supprimer ce paiement"):
+                    execute("DELETE FROM paiements_chauffeurs WHERE id=?", (pay_id,))
+                    st.success("Paiement supprimé.")
+                    st.rerun()
+
+    with tab_recap:
+        section("Récapitulatif par chauffeur")
+        df_recap = query("""
+            SELECT ch.nom||' '||ch.prenom as "Chauffeur",
+                   SUM(CASE WHEN p.type_paiement='Salaire mensuel'      THEN p.montant ELSE 0 END) as "Salaires (€)",
+                   SUM(CASE WHEN p.type_paiement='Prime mission'        THEN p.montant ELSE 0 END) as "Primes (€)",
+                   SUM(CASE WHEN p.type_paiement='Avance'               THEN p.montant ELSE 0 END) as "Avances (€)",
+                   SUM(CASE WHEN p.type_paiement='Heures supplémentaires' THEN p.montant ELSE 0 END) as "Heures supp. (€)",
+                   SUM(CASE WHEN p.type_paiement='Remboursement frais'  THEN p.montant ELSE 0 END) as "Remboursements (€)",
+                   SUM(p.montant) as "TOTAL (€)"
+            FROM paiements_chauffeurs p
+            JOIN chauffeurs ch ON ch.id=p.chauffeur_id
+            WHERE p.statut='Payé'
+            GROUP BY ch.id ORDER BY "TOTAL (€)" DESC
+        """)
+        st.dataframe(df_recap, use_container_width=True, hide_index=True)
+
+        st.divider()
+        section("Évolution des paiements dans le temps")
+        df_evol = query("""
+            SELECT strftime('%Y-%m', date_paiement) as mois,
+                   SUM(montant) as total
+            FROM paiements_chauffeurs WHERE statut='Payé'
+            GROUP BY mois ORDER BY mois
+        """)
+        if not df_evol.empty:
+            st.line_chart(df_evol.set_index("mois")["total"])
 
 
