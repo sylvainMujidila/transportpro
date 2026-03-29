@@ -243,7 +243,7 @@ def init_db():
             ("Martin","Sophie", "B+C",     "06 98 76 54 32","Disponible"),
             ("Leroy", "Julien", "B+CE+C1", "07 11 22 33 44","En mission"),
         ])
-        c.executemany("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,date_entretien,statut) VALUES (?,?,?,?,?)", [
+        c.executemany("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,date_entretien,statut) VALUES (?,?,?,?,?,?)", [
             ("AB-123-CD","Renault", "T460",  12000,"2024-01-17","Disponible"),
             ("EF-456-GH","Mercedes","Actros",25000,"2024-01-17","Disponible"),
             ("IJ-789-KL","Volvo",   "FH16",  30000,"2024-01-17","En mission"),
