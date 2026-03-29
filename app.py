@@ -714,69 +714,69 @@ elif "Chauffeurs" in page:
                     st.rerun()
 
     with tab_edit:
-    section("Modifier ou supprimer un chauffeur")
-
-    # Charger la liste des chauffeurs
-    df_ch = query("SELECT id, nom, prenom FROM chauffeurs ORDER BY nom")
-
-    if df_ch.empty:
-        st.info("Aucun chauffeur.")
-    else:
-        # Création d'un label unique pour éviter les doublons
-        df_ch["label"] = df_ch.apply(
-            lambda r: f"{r['nom']} {r['prenom']}  (ID={r['id']})",
-            axis=1
-        )
-
-        # Sélection du chauffeur
-        sel = st.selectbox("Sélectionner un chauffeur :", df_ch["label"].tolist())
-
-        # Extraire l'ID du chauffeur à partir du label
-        cid = int(sel.split("ID=")[1].replace(")", ""))
-
-        # Vérification et récupération des données complètes
-        row = query("SELECT * FROM chauffeurs WHERE id=?", params=(cid,))
-
-        if row.empty:
-            st.error("❌ Chauffeur introuvable dans la base.")
+        section("Modifier ou supprimer un chauffeur")
+    
+        # Charger la liste des chauffeurs
+        df_ch = query("SELECT id, nom, prenom FROM chauffeurs ORDER BY nom")
+    
+        if df_ch.empty:
+            st.info("Aucun chauffeur.")
         else:
-            r = row.iloc[0]
-
-            # ----- FORMULAIRE DE MISE À JOUR -----
-            with st.form("form_edit_chauffeur"):
-                c1, c2 = st.columns(2)
-
-                with c1:
-                    nom    = st.text_input("Nom",    value=r["nom"])
-                    prenom = st.text_input("Prénom", value=r["prenom"])
-                    permis = st.text_input("Permis", value=r.get("permis", "") or "")
-
-                with c2:
-                    telephone = st.text_input("Téléphone", value=r.get("telephone", "") or "")
-                    statuts   = ["Disponible", "En mission", "Absent"]
-
-                    statut = st.selectbox(
-                        "Statut",
-                        statuts,
-                        index=statuts.index(r["statut"]) if r["statut"] in statuts else 0
-                    )
-
-                # --------- BOUTON MAJ ---------
-                if st.form_submit_button("💾 Mettre à jour le chauffeur"):
-                    execute("""
-                        UPDATE chauffeurs 
-                        SET nom=?, prenom=?, permis=?, telephone=?, statut=? 
-                        WHERE id=?
-                    """, (nom, prenom, permis, telephone, statut, cid))
-
-                    st.success("✅ Chauffeur mis à jour !")
+            # Création d'un label unique pour éviter les doublons
+            df_ch["label"] = df_ch.apply(
+                lambda r: f"{r['nom']} {r['prenom']}  (ID={r['id']})",
+                axis=1
+            )
+    
+            # Sélection du chauffeur
+            sel = st.selectbox("Sélectionner un chauffeur :", df_ch["label"].tolist())
+    
+            # Extraire l'ID du chauffeur à partir du label
+            cid = int(sel.split("ID=")[1].replace(")", ""))
+    
+            # Vérification et récupération des données complètes
+            row = query("SELECT * FROM chauffeurs WHERE id=?", params=(cid,))
+    
+            if row.empty:
+                st.error("❌ Chauffeur introuvable dans la base.")
+            else:
+                r = row.iloc[0]
+    
+                # ----- FORMULAIRE DE MISE À JOUR -----
+                with st.form("form_edit_chauffeur"):
+                    c1, c2 = st.columns(2)
+    
+                    with c1:
+                        nom    = st.text_input("Nom",    value=r["nom"])
+                        prenom = st.text_input("Prénom", value=r["prenom"])
+                        permis = st.text_input("Permis", value=r.get("permis", "") or "")
+    
+                    with c2:
+                        telephone = st.text_input("Téléphone", value=r.get("telephone", "") or "")
+                        statuts   = ["Disponible", "En mission", "Absent"]
+    
+                        statut = st.selectbox(
+                            "Statut",
+                            statuts,
+                            index=statuts.index(r["statut"]) if r["statut"] in statuts else 0
+                        )
+    
+                    # --------- BOUTON MAJ ---------
+                    if st.form_submit_button("💾 Mettre à jour le chauffeur"):
+                        execute("""
+                            UPDATE chauffeurs 
+                            SET nom=?, prenom=?, permis=?, telephone=?, statut=? 
+                            WHERE id=?
+                        """, (nom, prenom, permis, telephone, statut, cid))
+    
+                        st.success("✅ Chauffeur mis à jour !")
+                        st.rerun()
+    
+                # --------- BOUTON SUPPRESSION ---------
+                if st.button("🗑️ Supprimer ce chauffeur"):
+                    execute("DELETE FROM chauffeurs WHERE id=?", (cid,))
+                    st.success("🚮 Chauffeur supprimé.")
                     st.rerun()
-
-            # --------- BOUTON SUPPRESSION ---------
-            if st.button("🗑️ Supprimer ce chauffeur"):
-                execute("DELETE FROM chauffeurs WHERE id=?", (cid,))
-                st.success("🚮 Chauffeur supprimé.")
-                st.rerun()
 
 # ─────────────────────────────────────────────
 #  PAGE : VÉHICULES
