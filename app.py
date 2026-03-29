@@ -239,14 +239,14 @@ def init_db():
             ("Électro Import",       "45 bd Voltaire, Paris",        "01 44 88 99 00", "import@electro.fr"),
         ])
         c.executemany("INSERT INTO chauffeurs (nom,prenom,permis,telephone,statut) VALUES (?,?,?,?,?)", [
-            ("Dupont","Marc",   "B+CE",    "06 12 34 56 78","Disponible","2024-01-17"),
-            ("Martin","Sophie", "B+C",     "06 98 76 54 32","Disponible","2024-01-17"),
-            ("Leroy", "Julien", "B+CE+C1", "07 11 22 33 44","En mission","2024-01-17"),
+            ("Dupont","Marc",   "B+CE",    "06 12 34 56 78","Disponible"),
+            ("Martin","Sophie", "B+C",     "06 98 76 54 32","Disponible"),
+            ("Leroy", "Julien", "B+CE+C1", "07 11 22 33 44","En mission"),
         ])
-        c.executemany("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,statut) VALUES (?,?,?,?,?)", [
-            ("AB-123-CD","Renault", "T460",  12000,"Disponible"),
-            ("EF-456-GH","Mercedes","Actros",25000,"Disponible"),
-            ("IJ-789-KL","Volvo",   "FH16",  30000,"En mission"),
+        c.executemany("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,date_entretien,statut) VALUES (?,?,?,?,?)", [
+            ("AB-123-CD","Renault", "T460",  12000,"2024-01-17","Disponible"),
+            ("EF-456-GH","Mercedes","Actros",25000,"2024-01-17","Disponible"),
+            ("IJ-789-KL","Volvo",   "FH16",  30000,"2024-01-17","En mission"),
         ])
         c.executemany("""INSERT INTO livraisons
             (reference,client_id,chauffeur_id,vehicule_id,origine,destination,
