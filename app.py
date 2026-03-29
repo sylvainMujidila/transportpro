@@ -823,8 +823,8 @@ elif "Véhicules" in page:
                     st.error("L'immatriculation est obligatoire.")
                 else:
                     try:
-                        execute("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,date_entretien,statut) VALUES (?,?,?,?,?)",
-                                (immat, marque, modele, capacite, statut))
+                        execute("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,dtentretien,statut) VALUES (?,?,?,?,?)",
+                                (immat, marque, modele, capacite,date_entretien ,statut))
                         st.success(f"✅ Véhicule **{immat}** ajouté !")
                         st.rerun()
                     except Exception as e:
