@@ -837,7 +837,7 @@ elif "Véhicules" in page:
         else:
             sel = st.selectbox("Sélectionner", veh_df["immatriculation"].tolist())
             vid = veh_df[veh_df["immatriculation"] == sel]["id"].iloc[0]
-            row = query("SELECT * FROM vehicules WHERE id=?", params=(vid,))
+            row = query("SELECT * FROM vehicules WHERE immatriculation=?", params=(vid,))
             if not row.empty:
                 r = row.iloc[0]
                 with st.form("form_edit_veh"):
