@@ -831,36 +831,72 @@ elif "Véhicules" in page:
 
     with tab_edit:
         section("Modifier ou supprimer un véhicule")
+    
+        # Charger la liste des véhicules
         veh_df = query("SELECT id, immatriculation FROM vehicules ORDER BY immatriculation")
+    
         if veh_df.empty:
             st.info("Aucun véhicule.")
         else:
-            sel = st.selectbox("Sélectionner", veh_df["immatriculation"].tolist())
-            vid = veh_df[veh_df["immatriculation"] == sel]["id"].iloc[0]
-            row = query("SELECT * FROM vehicules WHERE immatriculation=?", params=(vid,))
-            if not row.empty:
+            # Generer un label unique pour chaque véhicule
+            veh_df["label"] = veh_df.apply(
+                lambda r: f"{r['immatriculation']} (ID={r['id']})",
+                axis=1
+            )
+    
+            # Selection du véhicule
+            sel = st.selectbox("Sélectionner un véhicule :", veh_df["label"].tolist())
+    
+            # Extraction de l'ID à partir du label
+            vid = int(sel.split("ID=")[1].replace(")", ""))
+    
+            # Récupération des données complètes du véhicule
+            row = query("SELECT * FROM vehicules WHERE id=?", params=(vid,))
+    
+            if row.empty:
+                st.error("❌ Véhicule introuvable dans la base.")
+            else:
                 r = row.iloc[0]
+    
+                # -------- FORMULAIRE DE MISE À JOUR --------
                 with st.form("form_edit_veh"):
                     c1, c2 = st.columns(2)
+    
                     with c1:
                         immat  = st.text_input("Immatriculation", value=r["immatriculation"])
-                        marque = st.text_input("Marque",          value=r["marque"] or "")
-                        modele = st.text_input("Modèle",          value=r["modele"] or "")
+                        marque = st.text_input("Marque", value=r.get("marque", "") or "")
+                        modele = st.text_input("Modèle", value=r.get("modele", "") or "")
+    
                     with c2:
-                        capacite = st.number_input("Capacité (kg)", value=float(r["capacite_kg"] or 0), step=500.0)
-                        statuts  = ["Disponible","En mission","En maintenance"]
-                        statut   = st.selectbox("Statut", statuts,
-                                                 index=statuts.index(r["statut"]) if r["statut"] in statuts else 0)
-                    if st.form_submit_button("💾 Mettre à jour"):
-                        execute("UPDATE vehicules SET immatriculation=?,marque=?,modele=?,capacite_kg=?,statut=? WHERE id=?",
-                                (immat, marque, modele, capacite, statut, vid))
+                        capacite = st.number_input(
+                            "Capacité (kg)",
+                            value=float(r.get("capacite_kg", 0) or 0),
+                            step=500.0
+                        )
+    
+                        statuts = ["Disponible", "En mission", "En maintenance"]
+                        statut = st.selectbox(
+                            "Statut",
+                            statuts,
+                            index=statuts.index(r["statut"]) if r["statut"] in statuts else 0
+                        )
+    
+                    # ------- BOUTON MISE À JOUR -------
+                    if st.form_submit_button("💾 Mettre à jour le véhicule"):
+                        execute("""
+                            UPDATE vehicules
+                            SET immatriculation=?, marque=?, modele=?, capacite_kg=?, statut=?
+                            WHERE id=?
+                        """, (immat, marque, modele, capacite, statut, vid))
+    
                         st.success("✅ Véhicule mis à jour !")
                         st.rerun()
+    
+                # ------- SUPPRESSION -------
                 if st.button("🗑️ Supprimer ce véhicule"):
                     execute("DELETE FROM vehicules WHERE id=?", (vid,))
-                    st.success("Véhicule supprimé.")
+                    st.success("🚮 Véhicule supprimé.")
                     st.rerun()
-
 # ─────────────────────────────────────────────
 #  PAGE : DÉPENSES VÉHICULES
 # ─────────────────────────────────────────────
