@@ -192,7 +192,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS vehicules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         immatriculation TEXT NOT NULL UNIQUE, marque TEXT, modele TEXT,
-        capacite_kg REAL, statut TEXT DEFAULT 'Disponible',
+        capacite_kg REAL, statut TEXT DEFAULT 'Disponible',date_entretien TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS livraisons (
@@ -239,9 +239,9 @@ def init_db():
             ("Électro Import",       "45 bd Voltaire, Paris",        "01 44 88 99 00", "import@electro.fr"),
         ])
         c.executemany("INSERT INTO chauffeurs (nom,prenom,permis,telephone,statut) VALUES (?,?,?,?,?)", [
-            ("Dupont","Marc",   "B+CE",    "06 12 34 56 78","Disponible"),
-            ("Martin","Sophie", "B+C",     "06 98 76 54 32","Disponible"),
-            ("Leroy", "Julien", "B+CE+C1", "07 11 22 33 44","En mission"),
+            ("Dupont","Marc",   "B+CE",    "06 12 34 56 78","Disponible","2024-01-17"),
+            ("Martin","Sophie", "B+C",     "06 98 76 54 32","Disponible","2024-01-17"),
+            ("Leroy", "Julien", "B+CE+C1", "07 11 22 33 44","En mission","2024-01-17"),
         ])
         c.executemany("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,statut) VALUES (?,?,?,?,?)", [
             ("AB-123-CD","Renault", "T460",  12000,"Disponible"),
@@ -816,13 +816,14 @@ elif "Véhicules" in page:
                 modele = st.text_input("Modèle")
             with c2:
                 capacite = st.number_input("Capacité (kg)", min_value=0.0, step=500.0)
+                dtentretien = st.text_input("date_entretien")
                 statut   = st.selectbox("Statut", ["Disponible","En mission","En maintenance"])
             if st.form_submit_button("💾 Ajouter"):
                 if not immat:
                     st.error("L'immatriculation est obligatoire.")
                 else:
                     try:
-                        execute("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,statut) VALUES (?,?,?,?,?)",
+                        execute("INSERT INTO vehicules (immatriculation,marque,modele,capacite_kg,date_entretien,statut) VALUES (?,?,?,?,?)",
                                 (immat, marque, modele, capacite, statut))
                         st.success(f"✅ Véhicule **{immat}** ajouté !")
                         st.rerun()
