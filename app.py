@@ -459,8 +459,8 @@ elif "Livraisons" in page:
 
     # Listes FK
     clients_df    = query("SELECT id, nom FROM clients ORDER BY nom")
-    chauffeurs_df = query("SELECT id, nom||' '||prenom as nom FROM chauffeurs ORDER BY nom")
-    vehicules_df  = query("SELECT id, immatriculation FROM vehicules ORDER BY immatriculation")
+    chauffeurs_df = query("SELECT id, nom || ' ' || prenom AS nom FROM chauffeurs WHERE statut=? ORDER BY nom", params=("Disponible",))
+    vehicules_df  = query("SELECT id, immatriculation FROM vehicules  WHERE statut=? ORDER BY immatriculation", params=("Disponible",))
 
     clients_map    = dict(zip(clients_df["nom"],    clients_df["id"]))
     chauffeurs_map = dict(zip(chauffeurs_df["nom"], chauffeurs_df["id"]))
