@@ -1140,52 +1140,116 @@ elif "Paiements" in page:
                     st.success(f"✅ Paiement de **{montant_p:.2f} €** enregistré pour **{chauff_sel}** !")
                     st.rerun()
 
-    with tab_edit:
-        section("Modifier ou supprimer un paiement")
-        df_all_pay = query("""
-            SELECT p.id, ch.nom||' '||ch.prenom||' — '||p.type_paiement||' — '||p.date_paiement||' ('||p.montant||'€)' as label
-            FROM paiements_chauffeurs p LEFT JOIN chauffeurs ch ON ch.id=p.chauffeur_id
-            ORDER BY p.date_paiement DESC
-        """)
-        if df_all_pay.empty:
-            st.info("Aucun paiement enregistré.")
+   with tab_edit:
+    section("Modifier ou supprimer un paiement")
+
+    # Charger la liste complète des paiements
+    df_all_pay = query("""
+        SELECT 
+            p.id,
+            ch.nom || ' ' || ch.prenom || ' — ' || p.type_paiement || 
+            ' — ' || p.date_paiement || ' (' || p.montant || '€)' AS label
+        FROM paiements_chauffeurs p
+        LEFT JOIN chauffeurs ch ON ch.id = p.chauffeur_id
+        ORDER BY p.date_paiement DESC
+    """)
+
+    if df_all_pay.empty:
+        st.info("Aucun paiement enregistré.")
+    else:
+
+        # Création d’un label unique
+        df_all_pay["label"] = df_all_pay.apply(
+            lambda r: f"{r['label']}  (ID={r['id']})",
+            axis=1
+        )
+
+        # Sélection dans liste déroulante
+        sel_label_p = st.selectbox("Sélectionner un paiement :", df_all_pay["label"].tolist())
+
+        # Extraction de l’ID
+        pay_id = int(sel_label_p.split("ID=")[1].replace(")", ""))
+
+        # Charger les infos complètes du paiement
+        row_p = query("SELECT * FROM paiements_chauffeurs WHERE id=?", params=(pay_id,))
+
+        if row_p.empty:
+            st.error("❌ Paiement introuvable.")
         else:
-            sel_label_p = st.selectbox("Sélectionner", df_all_pay["label"].tolist())
-            pay_id      = df_all_pay[df_all_pay["label"] == sel_label_p]["id"].iloc[0]
-            row_p       = query("SELECT * FROM paiements_chauffeurs WHERE id=?", params=(pay_id,))
-            if not row_p.empty:
-                r = row_p.iloc[0]
-                with st.form("form_edit_pay"):
-                    c1, c2 = st.columns(2)
-                    ch_names  = list(chauff_map2.keys())
-                    cur_ch    = query("SELECT nom||' '||prenom as nom FROM chauffeurs WHERE id=?", params=(r["chauffeur_id"],))
-                    cur_ch_n  = cur_ch["nom"].iloc[0] if not cur_ch.empty else ch_names[0]
-                    with c1:
-                        chauff_sel = st.selectbox("Chauffeur", ch_names,
-                                                   index=ch_names.index(cur_ch_n) if cur_ch_n in ch_names else 0)
-                        type_pay   = st.selectbox("Type", TYPES_PAY,
-                                                   index=TYPES_PAY.index(r["type_paiement"]) if r["type_paiement"] in TYPES_PAY else 0)
-                        montant_p  = st.number_input("Montant (€)", value=float(r["montant"]), step=10.0)
-                        try:    date_pay = st.date_input("Date", value=date.fromisoformat(r["date_paiement"]))
-                        except: date_pay = st.date_input("Date", value=date.today())
-                    with c2:
-                        periode   = st.text_input("Période", value=r["periode"] or "")
-                        statuts_p = ["Payé", "En attente", "Annulé"]
-                        statut_p  = st.selectbox("Statut", statuts_p,
-                                                  index=statuts_p.index(r["statut"]) if r["statut"] in statuts_p else 0)
-                        notes_p   = st.text_area("Notes", value=r["notes"] or "")
-                    if st.form_submit_button("💾 Mettre à jour"):
-                        execute("""UPDATE paiements_chauffeurs SET chauffeur_id=?,type_paiement=?,montant=?,
-                            date_paiement=?,periode=?,statut=?,notes=? WHERE id=?""",
-                            (chauff_map2[chauff_sel], type_pay, montant_p, date_pay.isoformat(),
-                             periode, statut_p, notes_p, pay_id))
-                        st.success("✅ Paiement mis à jour !")
-                        st.rerun()
-                if st.button("🗑️ Supprimer ce paiement"):
-                    execute("DELETE FROM paiements_chauffeurs WHERE id=?", (pay_id,))
-                    st.success("Paiement supprimé.")
+            r = row_p.iloc[0]
+
+            # Récupérer le chauffeur actuel
+            ch_names = list(chauff_map2.keys())
+
+            cur_ch = query(
+                "SELECT nom || ' ' || prenom AS nom FROM chauffeurs WHERE id=?",
+                params=(r["chauffeur_id"],)
+            )
+            cur_ch_n = cur_ch["nom"].iloc[0] if not cur_ch.empty else ch_names[0]
+
+            # ---------------- FORMULAIRE ----------------
+            with st.form("form_edit_pay"):
+                c1, c2 = st.columns(2)
+
+                with c1:
+                    chauff_sel = st.selectbox(
+                        "Chauffeur",
+                        ch_names,
+                        index=ch_names.index(cur_ch_n) if cur_ch_n in ch_names else 0
+                    )
+
+                    type_pay = st.selectbox(
+                        "Type",
+                        TYPES_PAY,
+                        index=TYPES_PAY.index(r["type_paiement"]) if r["type_paiement"] in TYPES_PAY else 0
+                    )
+
+                    montant_p = st.number_input(
+                        "Montant (€)",
+                        value=float(r["montant"]),
+                        step=10.0
+                    )
+
+                    try:
+                        date_pay = st.date_input(
+                            "Date",
+                            value=date.fromisoformat(r["date_paiement"])
+                        )
+                    except:
+                        date_pay = st.date_input("Date", value=date.today())
+
+                with c2:
+                    periode = st.text_input("Période", value=r.get("periode", "") or "")
+
+                    statuts_p = ["Payé", "En attente", "Annulé"]
+                    statut_p = st.selectbox(
+                        "Statut",
+                        statuts_p,
+                        index=statuts_p.index(r["statut"]) if r["statut"] in statuts_p else 0
+                    )
+
+                    notes_p = st.text_area("Notes", value=r.get("notes", "") or "")
+
+                # -------- MISE À JOUR --------
+                if st.form_submit_button("💾 Mettre à jour"):
+                    execute("""
+                        UPDATE paiements_chauffeurs 
+                        SET chauffeur_id=?, type_paiement=?, montant=?, 
+                            date_paiement=?, periode=?, statut=?, notes=?
+                        WHERE id=?
+                    """, (
+                        chauff_map2[chauff_sel], type_pay, montant_p,
+                        date_pay.isoformat(), periode, statut_p, notes_p, pay_id
+                    ))
+
+                    st.success("✅ Paiement mis à jour !")
                     st.rerun()
 
+            # -------- SUPPRESSION --------
+            if st.button("🗑️ Supprimer ce paiement"):
+                execute("DELETE FROM paiements_chauffeurs WHERE id=?", (pay_id,))
+                st.success("🚮 Paiement supprimé.")
+                st.rerun()
     with tab_recap:
         section("Récapitulatif par chauffeur")
         df_recap = query("""
