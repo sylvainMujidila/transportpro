@@ -192,7 +192,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS vehicules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         immatriculation TEXT NOT NULL UNIQUE, marque TEXT, modele TEXT,
-        capacite_kg REAL, statut TEXT DEFAULT 'Disponible',date_entretien TEXT NOT NULL,
+        capacite_kg REAL, date_entretien TEXT NOT NULL, statut TEXT DEFAULT 'Disponible',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS livraisons (
@@ -791,7 +791,7 @@ elif "Véhicules" in page:
     with tab_list:
         df = query("""SELECT id as ID, immatriculation as Immatriculation,
                              marque as Marque, modele as Modèle,
-                             capacite_kg as "Capacité (kg)", statut as Statut
+                             capacite_kg as "Capacité (kg)", date_entretien as "Date Entretien", statut as Statut
                       FROM vehicules ORDER BY immatriculation""")
         st.dataframe(df, use_container_width=True, hide_index=True)
 
