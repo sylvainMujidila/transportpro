@@ -14,7 +14,7 @@ import os
 # ─────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="TransportPro",
+    page_title="Kabeya Trans",
     page_icon="🚛",
     layout="wide",
     initial_sidebar_state="expanded",
