@@ -791,7 +791,7 @@ elif "Véhicules" in page:
     with tab_list:
         df = query("""SELECT id as ID, immatriculation as Immatriculation,
                              marque as Marque, modele as Modèle,
-                             capacite_kg as "Capacité (kg)", statut as Statut
+                             capacite_kg as "Capacité (kg)", date_entretien as Entretien,statut as Statut
                       FROM vehicules ORDER BY immatriculation""")
         st.dataframe(df, use_container_width=True, hide_index=True)
 
