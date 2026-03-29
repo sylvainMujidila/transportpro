@@ -342,8 +342,8 @@ with st.sidebar:
         "👤  Clients",
         "🧑‍✈️  Chauffeurs",
         "🚗  Véhicules",
-        "🔧  Dépenses Véhicules",
-        "💰  Paiements Chauffeurs",
+        "🔧  Dépenses Véhicule",
+        "💰  Paiements Chauffeur",
     ], label_visibility="collapsed")
     st.divider()
     st.caption(f"🗓 {datetime.now().strftime('%d/%m/%Y %H:%M')}")
