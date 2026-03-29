@@ -721,7 +721,7 @@ elif "Chauffeurs" in page:
         else:
             sel = st.selectbox("Sélectionner", df_ch["nom"].tolist())
             cid = df_ch[df_ch["nom"] == sel]["id"].iloc[0]
-            row = query("SELECT * FROM chauffeurs WHERE id=?", params=(cid,))
+            row = query("SELECT * FROM chauffeurs WHERE nom=?", params=(sel,))
             if row.empty:
                  st.info("Aucun chauffeur.")
             if not row.empty:
